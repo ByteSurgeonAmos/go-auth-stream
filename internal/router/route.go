@@ -25,7 +25,11 @@ func SetUpRouter()* gin.Engine{
 		authRoutes.POST("/signup", handlers.Signup)
 		authRoutes.POST("/login", handlers.Login)
 	}
-
+	signUpProcess := r.Group("/api/signup-process")
+	{
+		signUpProcess.POST("/updateCompany", handlers.UpdateCompany)
+	}
+	
 	return r
 	
 }
