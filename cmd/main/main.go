@@ -38,6 +38,19 @@ func main() {
 		}()
 	}
 	
+	err = handlers.InitAgentHandler()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize agent handler: %v", err)
+		log.Println("Agent streaming endpoints will not be available")
+	} else {
+		log.Println("Agent service initialized successfully")
+		defer func() {
+			if err := handlers.CloseAgentHandler(); err != nil {
+				log.Printf("Error closing agent handler: %v", err)
+			}
+		}()
+	}
+	
 	var cronService *cron.CronService
 	if err == nil { 
 		cronService, err = cron.NewCronService()
@@ -67,6 +80,7 @@ func main() {
 			cronService.Stop()
 		}
 		handlers.CloseScraperHandler()
+		handlers.CloseAgentHandler()
 		db.CloseConnection()
 		os.Exit(0)
 	}()
