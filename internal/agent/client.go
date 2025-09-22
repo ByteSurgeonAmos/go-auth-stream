@@ -26,7 +26,7 @@ func NewClient() (*Client, error) {
 		host = "localhost"
 	}
 	if port == "" {
-		port = "50052"
+		port = "5001"  
 	}
 	
 	address := fmt.Sprintf("%s:%s", host, port)

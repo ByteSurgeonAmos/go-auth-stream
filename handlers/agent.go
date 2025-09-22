@@ -234,7 +234,7 @@ func streamWithRegularGeneration(c *gin.Context, grpcReq *agentpb.GeneratePostRe
 
 	
 	if response != nil {
-		log.Printf("ConversationId: %s", response.ConversationId)
+		log.Printf("Response: %s", response)
 		if response.PostResponse != nil {
 			log.Printf("PostResponse exists:")
 			log.Printf("  PostId: %s", response.PostResponse.PostId)
