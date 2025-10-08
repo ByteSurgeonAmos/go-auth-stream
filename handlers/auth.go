@@ -3,8 +3,11 @@ package handlers
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
+	"time"
 
+	"github.com/ByteSurgeonAmos/go-auth-stream/connectors"
 	"github.com/ByteSurgeonAmos/go-auth-stream/internal/db"
 	"github.com/ByteSurgeonAmos/go-auth-stream/models"
 	"github.com/ByteSurgeonAmos/go-auth-stream/types"
@@ -60,8 +63,14 @@ func Signup(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating user"})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "Request processed successfully. Kindly proceed with the sign up process", "user_id": result.InsertedID})
 
+	go func() {
+		if err := utils.SendWelcomeEmail(input.Email, input.UserName); err != nil {
+			log.Printf("Failed to send welcome email to %s: %v", input.Email, err)
+		}
+	}()
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Request processed successfully. Kindly proceed with the sign up process", "user_id": result.InsertedID})
 }
 
 func HashPassword(password string) (string, error) {
@@ -102,13 +111,102 @@ func Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
+
+	if user.TwoFactorEnabled {
+		code := generate2FACode()
+		expiry := time.Now().Add(10 * time.Minute)
+
+		filter := bson.M{"email": input.Email}
+		update := bson.M{
+			"$set": bson.M{
+				"two_factor_code":   code,
+				"two_factor_expiry": expiry,
+			},
+		}
+		_, err = usersCollection.UpdateOne(ctx, filter, update)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating 2FA code"})
+			return
+		}
+
+		go func() {
+			if err := utils.Send2FACode(user.Email, code); err != nil {
+				log.Printf("Failed to send 2FA code to %s: %v", user.Email, err)
+			}
+		}()
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":      "2FA code sent to your email",
+			"requires_2fa": true,
+		})
+		return
+	}
+
 	token, err := utils.CreateJwtToken(user.ID.Hex(), user.UserName, user.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Login successful", "user_id": user.ID, "token": token})
+}
 
+func Verify2FA(c *gin.Context) {
+	var input types.TwoFactorVerifyInput
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := utils.TimeoutWindow(10)
+	defer cancel()
+
+	var user models.User
+	err = usersCollection.FindOne(ctx, bson.M{"email": input.Email}).Decode(&user)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if user.TwoFactorCode != input.Code {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid verification code"})
+		return
+	}
+
+	if time.Now().After(user.TwoFactorExpiry) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Verification code has expired"})
+		return
+	}
+
+	filter := bson.M{"email": input.Email}
+	update := bson.M{
+		"$unset": bson.M{
+			"two_factor_code":   "",
+			"two_factor_expiry": "",
+		},
+	}
+	_, err = usersCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		log.Printf("Error clearing 2FA code: %v", err)
+	}
+
+	token, err := utils.CreateJwtToken(user.ID.Hex(), user.UserName, user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "2FA verification successful",
+		"user_id": user.ID,
+		"token":   token,
+	})
+}
+
+func generate2FACode() string {
+	rand.Seed(time.Now().UnixNano())
+	code := rand.Intn(900000) + 100000
+	return fmt.Sprintf("%06d", code)
 }
 
 func UpdateCompany(c *gin.Context) {
@@ -124,7 +222,6 @@ func UpdateCompany(c *gin.Context) {
 	ctx, cancel := utils.TimeoutWindow(10)
 	defer cancel()
 
-	// First, add the company to the user's companies array
 	filter := bson.M{"_id": input.UserID}
 	update := bson.M{"$push": bson.M{"company": input.Company}}
 	result, err := usersCollection.UpdateOne(ctx, filter, update)
@@ -137,7 +234,6 @@ func UpdateCompany(c *gin.Context) {
 		return
 	}
 
-	// Get the index of the newly added company
 	var user models.User
 	err = usersCollection.FindOne(ctx, bson.M{"_id": input.UserID}).Decode(&user)
 	if err != nil {
@@ -145,9 +241,8 @@ func UpdateCompany(c *gin.Context) {
 		return
 	}
 
-	companyIndex := len(user.Companies) - 1 // Index of the newly added company
+	companyIndex := len(user.Companies) - 1 
 
-	// Trigger async scraping if scraper service is available
 	if scraperService != nil && input.Company.Link != "" {
 		log.Printf("Triggering scraping for company: %s", input.Company.CompanyName)
 		scrapeCompanyAsync(&input.Company, input.UserID, companyIndex)
@@ -158,5 +253,148 @@ func UpdateCompany(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message":            "Company information updated successfully",
 		"scraping_initiated": scraperService != nil && input.Company.Link != "",
+	})
+}
+
+// Facebook OAuth handlers
+func InitiateFacebookAuth(c *gin.Context) {
+	state := utils.GenerateRandomState()
+	utils.StoreOAuthState(state)
+	authURL := connectors.GetFacebookAuthURL(state)
+	
+	c.JSON(http.StatusOK, gin.H{
+		"auth_url": authURL,
+		"state":    state,
+	})
+}
+
+func FacebookCallback(c *gin.Context) {
+	code := c.Query("code")
+	state := c.Query("state")
+	
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization code not provided"})
+		return
+	}
+	
+	if !utils.ValidateOAuthState(state) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired state parameter"})
+		return
+	}
+	
+	ctx, cancel := utils.TimeoutWindow(30)
+	defer cancel()
+	
+	token, err := connectors.ExchangeFacebookCodeForToken(ctx, code)
+	if err != nil {
+		log.Printf("Failed to exchange Facebook code for token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to authenticate with Facebook"})
+		return
+	}
+	
+	// Get Facebook pages
+	pages, err := connectors.GetFacebookPages(ctx, token.AccessToken)
+	if err != nil {
+		log.Printf("Failed to get Facebook pages: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get Facebook pages"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "Facebook authentication successful",
+		"access_token":  token.AccessToken,
+		"refresh_token": token.RefreshToken,
+		"expires_at":    token.Expiry,
+		"pages":         pages,
+		"state":         state,
+	})
+}
+
+// Instagram OAuth handlers
+func InitiateInstagramAuth(c *gin.Context) {
+	state := utils.GenerateRandomState()
+	utils.StoreOAuthState(state)
+	authURL := connectors.GetInstagramAuthURL(state)
+	
+	c.JSON(http.StatusOK, gin.H{
+		"auth_url": authURL,
+		"state":    state,
+	})
+}
+
+func InstagramCallback(c *gin.Context) {
+	code := c.Query("code")
+	state := c.Query("state")
+	
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization code not provided"})
+		return
+	}
+	
+	if !utils.ValidateOAuthState(state) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired state parameter"})
+		return
+	}
+	
+	ctx, cancel := utils.TimeoutWindow(30)
+	defer cancel()
+	
+	token, err := connectors.ExchangeInstagramCodeForToken(ctx, code)
+	if err != nil {
+		log.Printf("Failed to exchange Instagram code for token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to authenticate with Instagram"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "Instagram authentication successful",
+		"access_token":  token.AccessToken,
+		"expires_at":    token.Expiry,
+		"state":         state,
+	})
+}
+
+// Twitter OAuth handlers
+func InitiateTwitterAuth(c *gin.Context) {
+	state := utils.GenerateRandomState()
+	utils.StoreOAuthState(state)
+	authURL := connectors.GetTwitterAuthURL(state)
+	
+	c.JSON(http.StatusOK, gin.H{
+		"auth_url": authURL,
+		"state":    state,
+	})
+}
+
+func TwitterCallback(c *gin.Context) {
+	code := c.Query("code")
+	state := c.Query("state")
+	
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization code not provided"})
+		return
+	}
+	
+	if !utils.ValidateOAuthState(state) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired state parameter"})
+		return
+	}
+	
+	ctx, cancel := utils.TimeoutWindow(30)
+	defer cancel()
+	
+	token, err := connectors.ExchangeCodeForToken(ctx, code)
+	if err != nil {
+		log.Printf("Failed to exchange Twitter code for token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to authenticate with Twitter"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "Twitter authentication successful",
+		"access_token":  token.AccessToken,
+		"refresh_token": token.RefreshToken,
+		"expires_at":    token.Expiry,
+		"state":         state,
 	})
 }

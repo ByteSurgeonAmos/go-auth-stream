@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/ByteSurgeonAmos/go-auth-stream/handlers"
+	"github.com/ByteSurgeonAmos/go-auth-stream/internal/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,14 +26,63 @@ func SetUpRouter()* gin.Engine{
 	{
 		authRoutes.POST("/signup", handlers.Signup)
 		authRoutes.POST("/login", handlers.Login)
+		authRoutes.POST("/verify-2fa", handlers.Verify2FA)
+		
+		// Twitter OAuth
+		authRoutes.GET("/twitter/init", handlers.InitiateTwitterAuth)
+		authRoutes.GET("/twitter/callback", handlers.TwitterCallback)
+		
+		// Facebook OAuth
+		authRoutes.GET("/facebook/init", handlers.InitiateFacebookAuth)
+		authRoutes.GET("/facebook/callback", handlers.FacebookCallback)
+		
+		// Instagram OAuth
+		authRoutes.GET("/instagram/init", handlers.InitiateInstagramAuth)
+		authRoutes.GET("/instagram/callback", handlers.InstagramCallback)
 	}
 	
 	signUpProcess := r.Group("/api/signup-process")
+	signUpProcess.Use(middleware.AuthMiddleware())
 	{
 		signUpProcess.POST("/updateCompany", handlers.UpdateCompany)
 	}
 	
+	socialRoutes := r.Group("/api/social")
+	{
+		socialRoutes.GET("/platforms", handlers.GetAllPlatforms) 
+		
+		socialRoutes.PUT("/platforms", middleware.AuthMiddleware(), handlers.UpdateSocialMedia)
+		socialRoutes.GET("/user/platforms", middleware.AuthMiddleware(), handlers.GetUserSocialMedia)
+	}
+	
+	postRoutes := r.Group("/api/posts")
+	postRoutes.Use(middleware.AuthMiddleware())
+	{
+		postRoutes.POST("/", handlers.CreatePost)
+		postRoutes.GET("/", handlers.GetAllPosts)
+		postRoutes.POST("/publish", handlers.PublishPost)
+	}
+	
+	planRoutes := r.Group("/api/plans")
+	{
+		planRoutes.GET("/", handlers.GetAllPlans)
+	}
+	
+	subscriptionRoutes := r.Group("/api/subscriptions")
+	subscriptionRoutes.Use(middleware.AuthMiddleware())
+	{
+		subscriptionRoutes.POST("/", handlers.CreateSubscription)
+		subscriptionRoutes.GET("/", handlers.GetUserSubscription)
+	}
+	
+	paymentRoutes := r.Group("/api/payments")
+	{
+		paymentRoutes.POST("/initialize", middleware.AuthMiddleware(), handlers.InitializePayment)
+		paymentRoutes.GET("/verify", handlers.VerifyPayment) 
+	}
+	
 	agentRoutes := r.Group("/api/agent")
+	agentRoutes.Use(middleware.AuthMiddleware())
 	{
 		agentRoutes.GET("/generate/stream", handlers.StreamPostGeneration)
 		agentRoutes.POST("/generate/stream", handlers.StreamPostGeneration)

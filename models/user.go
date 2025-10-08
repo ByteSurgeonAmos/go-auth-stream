@@ -51,5 +51,8 @@ type User struct{
 	Email string	`bson:"email" json:"email"`
 	Password string	`bson:"password" json:"-"`
 	Companies []Company `bson:"company" json:"company"`
+	TwoFactorEnabled bool `bson:"two_factor_enabled" json:"two_factor_enabled"`
+	TwoFactorCode string `bson:"two_factor_code,omitempty" json:"-"`
+	TwoFactorExpiry time.Time `bson:"two_factor_expiry,omitempty" json:"-"`
 }
 

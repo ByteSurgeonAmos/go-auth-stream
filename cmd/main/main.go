@@ -11,6 +11,7 @@ import (
 	"github.com/ByteSurgeonAmos/go-auth-stream/internal/cron"
 	"github.com/ByteSurgeonAmos/go-auth-stream/internal/db"
 	"github.com/ByteSurgeonAmos/go-auth-stream/internal/router"
+	"github.com/ByteSurgeonAmos/go-auth-stream/utils"
 	"github.com/joho/godotenv"
 )
 
@@ -23,7 +24,26 @@ func main() {
 	db.ConnectDB()
 	defer db.CloseConnection()
 	
+	// Initialize email service
+	if err := utils.InitEmailService(); err != nil {
+		log.Printf("Warning: Email service initialization failed: %v", err)
+		log.Println("Email notifications will not be available")
+	} else {
+		log.Println("Email service initialized successfully")
+	}
+	
+	// Initialize Paystack service
+	if err := utils.InitPaystackService(); err != nil {
+		log.Printf("Warning: Paystack service initialization failed: %v", err)
+		log.Println("Payment endpoints will not be fully functional")
+	} else {
+		log.Println("Paystack service initialized successfully")
+	}
+	
 	handlers.InitAuthHandler()
+	handlers.InitSocialHandler()
+	handlers.InitPostHandler()
+	handlers.InitSubscriptionHandler()
 	
 	err = handlers.InitScraperHandler()
 	if err != nil {

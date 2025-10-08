@@ -10,9 +10,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+)
+
+var (
+	oauthStates = make(map[string]time.Time)
+	stateMutex  sync.RWMutex
 )
 
 func TimeoutWindow(secs int)(context.Context,context.CancelFunc){
@@ -114,4 +120,47 @@ func containsInMiddle(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func GenerateRandomState() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return base64.URLEncoding.EncodeToString(b)
+}
+
+func StoreOAuthState(state string) {
+	stateMutex.Lock()
+	defer stateMutex.Unlock()
+	oauthStates[state] = time.Now().Add(10 * time.Minute)
+	go cleanupExpiredStates()
+}
+
+func ValidateOAuthState(state string) bool {
+	stateMutex.Lock()
+	defer stateMutex.Unlock()
+	
+	expiry, exists := oauthStates[state]
+	if !exists {
+		return false
+	}
+	
+	if time.Now().After(expiry) {
+		delete(oauthStates, state)
+		return false
+	}
+	
+	delete(oauthStates, state)
+	return true
+}
+
+func cleanupExpiredStates() {
+	stateMutex.Lock()
+	defer stateMutex.Unlock()
+	
+	now := time.Now()
+	for state, expiry := range oauthStates {
+		if now.After(expiry) {
+			delete(oauthStates, state)
+		}
+	}
 }

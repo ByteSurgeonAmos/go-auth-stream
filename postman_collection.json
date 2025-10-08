@@ -1,0 +1,806 @@
+{
+  "info": {
+    "_postman_id": "agent4-social-media-api",
+    "name": "Agent4 Social Media API",
+    "description": "Complete API collection for Agent4 Social Media Management Platform with Twitter, Facebook, and Instagram integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "agent4-api"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8089",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "post_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "company_name",
+      "value": "My Company",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the API is running"
+          }
+        },
+        {
+          "name": "Root Endpoint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            },
+            "description": "Get API welcome message"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Signup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"johndoe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/signup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "signup"]
+            },
+            "description": "Register a new user account"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.token) {",
+                  "        pm.collectionVariables.set('auth_token', jsonData.token);",
+                  "        pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login with email and password. Returns JWT token."
+          }
+        },
+        {
+          "name": "Verify 2FA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('auth_token', jsonData.token);",
+                  "    pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/verify-2fa",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "verify-2fa"]
+            },
+            "description": "Verify 2FA code sent to email"
+          }
+        }
+      ]
+    },
+    {
+      "name": "OAuth - Twitter",
+      "item": [
+        {
+          "name": "Initiate Twitter OAuth",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/twitter/init",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "twitter", "init"]
+            },
+            "description": "Get Twitter OAuth authorization URL"
+          }
+        },
+        {
+          "name": "Twitter OAuth Callback",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/twitter/callback?code=AUTH_CODE&state=STATE_VALUE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "twitter", "callback"],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "AUTH_CODE"
+                },
+                {
+                  "key": "state",
+                  "value": "STATE_VALUE"
+                }
+              ]
+            },
+            "description": "Handle Twitter OAuth callback (automatically called by Twitter)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "OAuth - Facebook",
+      "item": [
+        {
+          "name": "Initiate Facebook OAuth",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/facebook/init",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "facebook", "init"]
+            },
+            "description": "Get Facebook OAuth authorization URL"
+          }
+        },
+        {
+          "name": "Facebook OAuth Callback",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/facebook/callback?code=AUTH_CODE&state=STATE_VALUE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "facebook", "callback"],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "AUTH_CODE"
+                },
+                {
+                  "key": "state",
+                  "value": "STATE_VALUE"
+                }
+              ]
+            },
+            "description": "Handle Facebook OAuth callback (automatically called by Facebook)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "OAuth - Instagram",
+      "item": [
+        {
+          "name": "Initiate Instagram OAuth",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/instagram/init",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "instagram", "init"]
+            },
+            "description": "Get Instagram OAuth authorization URL"
+          }
+        },
+        {
+          "name": "Instagram OAuth Callback",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/instagram/callback?code=AUTH_CODE&state=STATE_VALUE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "instagram", "callback"],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "AUTH_CODE"
+                },
+                {
+                  "key": "state",
+                  "value": "STATE_VALUE"
+                }
+              ]
+            },
+            "description": "Handle Instagram OAuth callback (automatically called by Instagram)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Company Management",
+      "item": [
+        {
+          "name": "Update Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"company\": {\n    \"company_name\": \"{{company_name}}\",\n    \"link\": \"https://example.com\",\n    \"socials\": []\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/signup-process/updateCompany",
+              "host": ["{{base_url}}"],
+              "path": ["api", "signup-process", "updateCompany"]
+            },
+            "description": "Add or update company information for a user"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Social Media Platforms",
+      "item": [
+        {
+          "name": "Get All Platforms",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/social/platforms",
+              "host": ["{{base_url}}"],
+              "path": ["api", "social", "platforms"]
+            },
+            "description": "Get list of all supported social media platforms"
+          }
+        },
+        {
+          "name": "Link Social Platform",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"{{company_name}}\",\n  \"social\": {\n    \"platform\": \"x\",\n    \"username\": \"myhandle\",\n    \"url\": \"https://twitter.com/myhandle\",\n    \"access_token\": \"your_access_token\",\n    \"refresh_token\": \"your_refresh_token\",\n    \"expires_at\": \"2024-12-31T23:59:59Z\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/social/platforms",
+              "host": ["{{base_url}}"],
+              "path": ["api", "social", "platforms"]
+            },
+            "description": "Link a social media platform to a company"
+          }
+        },
+        {
+          "name": "Get User Social Platforms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/social/user/platforms",
+              "host": ["{{base_url}}"],
+              "path": ["api", "social", "user", "platforms"]
+            },
+            "description": "Get all social platforms linked to user's companies"
+          }
+        },
+        {
+          "name": "Get User Social Platforms By Company",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/social/user/platforms?company_name={{company_name}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "social", "user", "platforms"],
+              "query": [
+                {
+                  "key": "company_name",
+                  "value": "{{company_name}}"
+                }
+              ]
+            },
+            "description": "Get social platforms for a specific company"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "item": [
+        {
+          "name": "Create Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('post_id', jsonData.post_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Check out our latest updates! #excited #socialmedia\",\n  \"images\": [\"https://example.com/image.jpg\"],\n  \"scheduled_at\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts"]
+            },
+            "description": "Create a new post (draft or scheduled)"
+          }
+        },
+        {
+          "name": "Create Scheduled Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"This post will be published later!\",\n  \"images\": [\"https://example.com/image.jpg\"],\n  \"scheduled_at\": \"2024-12-31T12:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts"]
+            },
+            "description": "Create a scheduled post"
+          }
+        },
+        {
+          "name": "Get All Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/posts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts"]
+            },
+            "description": "Get all posts for the authenticated user"
+          }
+        },
+        {
+          "name": "Publish Post to Twitter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"post_id\": \"{{post_id}}\",\n  \"company_name\": \"{{company_name}}\",\n  \"platforms\": [\"x\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts/publish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "publish"]
+            },
+            "description": "Publish a post to Twitter/X"
+          }
+        },
+        {
+          "name": "Publish Post to Facebook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"post_id\": \"{{post_id}}\",\n  \"company_name\": \"{{company_name}}\",\n  \"platforms\": [\"facebook\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts/publish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "publish"]
+            },
+            "description": "Publish a post to Facebook"
+          }
+        },
+        {
+          "name": "Publish Post to Instagram",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"post_id\": \"{{post_id}}\",\n  \"company_name\": \"{{company_name}}\",\n  \"platforms\": [\"instagram\"],\n  \"image_url\": \"https://example.com/image.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts/publish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "publish"]
+            },
+            "description": "Publish a post to Instagram (requires image_url)"
+          }
+        },
+        {
+          "name": "Publish Post to All Platforms",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"post_id\": \"{{post_id}}\",\n  \"company_name\": \"{{company_name}}\",\n  \"platforms\": [\"x\", \"facebook\", \"instagram\"],\n  \"image_url\": \"https://example.com/image.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts/publish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "publish"]
+            },
+            "description": "Publish a post to all platforms simultaneously"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscription Plans",
+      "item": [
+        {
+          "name": "Get All Plans",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans"]
+            },
+            "description": "Get all available subscription plans"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "item": [
+        {
+          "name": "Create Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_id\": \"plan_id_here\",\n  \"payment_method\": \"card\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions"]
+            },
+            "description": "Create a new subscription"
+          }
+        },
+        {
+          "name": "Get User Subscription",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions"]
+            },
+            "description": "Get current user's subscription details"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Initialize Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5000,\n  \"email\": \"john@example.com\",\n  \"plan_id\": \"plan_id_here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/initialize",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "initialize"]
+            },
+            "description": "Initialize a payment transaction"
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/payments/verify?reference=PAYMENT_REFERENCE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "verify"],
+              "query": [
+                {
+                  "key": "reference",
+                  "value": "PAYMENT_REFERENCE"
+                }
+              ]
+            },
+            "description": "Verify a payment transaction"
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI Agent",
+      "item": [
+        {
+          "name": "Generate Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"{{company_name}}\",\n  \"prompt\": \"Create an engaging post about our latest product launch\",\n  \"platform\": \"x\",\n  \"tone\": \"professional\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/agent/generate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "agent", "generate"]
+            },
+            "description": "Generate a social media post using AI"
+          }
+        },
+        {
+          "name": "Generate Post (Streaming)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"{{company_name}}\",\n  \"prompt\": \"Create an engaging post about our latest product launch\",\n  \"platform\": \"x\",\n  \"tone\": \"professional\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/agent/generate/stream",
+              "host": ["{{base_url}}"],
+              "path": ["api", "agent", "generate", "stream"]
+            },
+            "description": "Generate a social media post using AI with streaming response"
+          }
+        },
+        {
+          "name": "Get User Companies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/agent/companies/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "agent", "companies", "{{user_id}}"]
+            },
+            "description": "Get all companies for a specific user"
+          }
+        },
+        {
+          "name": "Create Conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"{{company_name}}\",\n  \"message\": \"Can you help me create a post?\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/agent/conversations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "agent", "conversations"]
+            },
+            "description": "Create a new conversation with the AI agent"
+          }
+        }
+      ]
+    }
+  ]
+}
