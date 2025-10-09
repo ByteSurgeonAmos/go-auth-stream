@@ -11,6 +11,7 @@ import (
 	"github.com/ByteSurgeonAmos/go-auth-stream/internal/cron"
 	"github.com/ByteSurgeonAmos/go-auth-stream/internal/db"
 	"github.com/ByteSurgeonAmos/go-auth-stream/internal/router"
+	"github.com/ByteSurgeonAmos/go-auth-stream/internal/scheduler"
 	"github.com/ByteSurgeonAmos/go-auth-stream/utils"
 	"github.com/joho/godotenv"
 )
@@ -71,6 +72,12 @@ func main() {
 		}()
 	}
 	
+	// Initialize post scheduler
+	postScheduler := scheduler.NewPostScheduler()
+	postScheduler.Start()
+	log.Println("Post scheduler initialized successfully")
+	defer postScheduler.Stop()
+	
 	var cronService *cron.CronService
 	if err == nil { 
 		cronService, err = cron.NewCronService()
@@ -96,6 +103,7 @@ func main() {
 	go func() {
 		<-c
 		fmt.Println("\nGracefully shutting down...")
+		postScheduler.Stop()
 		if cronService != nil {
 			cronService.Stop()
 		}

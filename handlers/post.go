@@ -17,6 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/oauth2"
 )
 
@@ -54,6 +55,12 @@ func CreatePost(c *gin.Context) {
 	if input.ScheduledAt != nil {
 		status = "scheduled"
 		scheduledAt = *input.ScheduledAt
+		
+		// Validate scheduled time is in the future
+		if scheduledAt.Before(time.Now()) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Scheduled time must be in the future"})
+			return
+		}
 	}
 
 	post := models.Post{
@@ -64,6 +71,10 @@ func CreatePost(c *gin.Context) {
 		ScheduledAt: scheduledAt,
 		Status:      status,
 		UserID:      userObjID,
+		CompanyName: input.CompanyName,
+		Platforms:   input.Platforms,
+		ImageURL:    input.ImageURL,
+		RetryCount:  0,
 	}
 
 	result, err := postsCollection.InsertOne(ctx, post)
@@ -72,8 +83,13 @@ func CreatePost(c *gin.Context) {
 		return
 	}
 
+	message := "Post created successfully"
+	if status == "scheduled" {
+		message = fmt.Sprintf("Post scheduled for %s", scheduledAt.Format(time.RFC3339))
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "Post created successfully",
+		"message": message,
 		"post_id": result.InsertedID,
 		"post":    post,
 	})
@@ -117,6 +133,100 @@ func GetAllPosts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"posts": posts,
 		"count": len(posts),
+	})
+}
+
+func GetScheduledPosts(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
+		return
+	}
+
+	ctx, cancel := utils.TimeoutWindow(10)
+	defer cancel()
+
+	objID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	filter := bson.M{
+		"user_id": objID,
+		"status":  "scheduled",
+	}
+
+	sortOptions := bson.D{{Key: "scheduled_at", Value: 1}}
+	cursor, err := postsCollection.Find(ctx, filter, options.Find().SetSort(sortOptions))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching scheduled posts"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var posts []models.Post
+	err = cursor.All(ctx, &posts)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding posts"})
+		return
+	}
+
+	if posts == nil {
+		posts = []models.Post{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"posts": posts,
+		"count": len(posts),
+	})
+}
+
+func CancelScheduledPost(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found in token"})
+		return
+	}
+
+	postID := c.Param("post_id")
+	postObjID, err := primitive.ObjectIDFromHex(postID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid post ID"})
+		return
+	}
+
+	ctx, cancel := utils.TimeoutWindow(10)
+	defer cancel()
+
+	userObjID, _ := primitive.ObjectIDFromHex(userID)
+
+	result, err := postsCollection.UpdateOne(
+		ctx,
+		bson.M{
+			"_id":     postObjID,
+			"user_id": userObjID,
+			"status":  "scheduled",
+		},
+		bson.M{
+			"$set": bson.M{
+				"status": "draft",
+			},
+		},
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error cancelling scheduled post"})
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Scheduled post not found or already published"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Scheduled post cancelled successfully",
 	})
 }
 
@@ -261,6 +371,18 @@ func PublishPost(c *gin.Context) {
 		"message": "Post published",
 		"results": results,
 	})
+}
+
+func PublishToTwitter(ctx context.Context, userID primitive.ObjectID, companyName string, social *models.Social, content string) (string, error) {
+	return publishToTwitter(ctx, userID, companyName, social, content)
+}
+
+func PublishToFacebook(ctx context.Context, userID primitive.ObjectID, companyName string, social *models.Social, content string) (string, error) {
+	return publishToFacebook(ctx, userID, companyName, social, content)
+}
+
+func PublishToInstagram(ctx context.Context, userID primitive.ObjectID, companyName string, social *models.Social, caption, imageURL string) (string, error) {
+	return publishToInstagram(ctx, userID, companyName, social, caption, imageURL)
 }
 
 func publishToTwitter(ctx context.Context, userID primitive.ObjectID, companyName string, social *models.Social, content string) (string, error) {

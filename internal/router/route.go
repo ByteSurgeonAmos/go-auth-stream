@@ -28,15 +28,12 @@ func SetUpRouter()* gin.Engine{
 		authRoutes.POST("/login", handlers.Login)
 		authRoutes.POST("/verify-2fa", handlers.Verify2FA)
 		
-		// Twitter OAuth
 		authRoutes.GET("/twitter/init", handlers.InitiateTwitterAuth)
 		authRoutes.GET("/twitter/callback", handlers.TwitterCallback)
 		
-		// Facebook OAuth
 		authRoutes.GET("/facebook/init", handlers.InitiateFacebookAuth)
-		authRoutes.GET("/facebook/callback", handlers.FacebookCallback)
+		authRoutes.	GET("/facebook/callback", handlers.FacebookCallback)
 		
-		// Instagram OAuth
 		authRoutes.GET("/instagram/init", handlers.InitiateInstagramAuth)
 		authRoutes.GET("/instagram/callback", handlers.InstagramCallback)
 	}
@@ -60,6 +57,8 @@ func SetUpRouter()* gin.Engine{
 	{
 		postRoutes.POST("/", handlers.CreatePost)
 		postRoutes.GET("/", handlers.GetAllPosts)
+		postRoutes.GET("/scheduled", handlers.GetScheduledPosts)
+		postRoutes.DELETE("/scheduled/:post_id", handlers.CancelScheduledPost)
 		postRoutes.POST("/publish", handlers.PublishPost)
 	}
 	

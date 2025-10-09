@@ -32,6 +32,9 @@ type CreatePostInput struct {
 	Content     string     `json:"content" binding:"required"`
 	Images      []string   `json:"images"`
 	ScheduledAt *time.Time `json:"scheduled_at"`
+	CompanyName string     `json:"company_name"`
+	Platforms   []string   `json:"platforms"`
+	ImageURL    string     `json:"image_url"`
 }
 
 type CreateSubscriptionInput struct {

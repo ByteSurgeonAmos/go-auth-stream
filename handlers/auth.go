@@ -256,7 +256,6 @@ func UpdateCompany(c *gin.Context) {
 	})
 }
 
-// Facebook OAuth handlers
 func InitiateFacebookAuth(c *gin.Context) {
 	state := utils.GenerateRandomState()
 	utils.StoreOAuthState(state)
@@ -292,7 +291,6 @@ func FacebookCallback(c *gin.Context) {
 		return
 	}
 	
-	// Get Facebook pages
 	pages, err := connectors.GetFacebookPages(ctx, token.AccessToken)
 	if err != nil {
 		log.Printf("Failed to get Facebook pages: %v", err)
@@ -310,7 +308,6 @@ func FacebookCallback(c *gin.Context) {
 	})
 }
 
-// Instagram OAuth handlers
 func InitiateInstagramAuth(c *gin.Context) {
 	state := utils.GenerateRandomState()
 	utils.StoreOAuthState(state)
@@ -354,7 +351,6 @@ func InstagramCallback(c *gin.Context) {
 	})
 }
 
-// Twitter OAuth handlers
 func InitiateTwitterAuth(c *gin.Context) {
 	state := utils.GenerateRandomState()
 	utils.StoreOAuthState(state)

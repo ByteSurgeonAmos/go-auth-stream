@@ -448,7 +448,7 @@
       "name": "Posts",
       "item": [
         {
-          "name": "Create Post",
+          "name": "Create Post (Draft)",
           "event": [
             {
               "listen": "test",
@@ -473,18 +473,32 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"content\": \"Check out our latest updates! #excited #socialmedia\",\n  \"images\": [\"https://example.com/image.jpg\"],\n  \"scheduled_at\": null\n}"
+              "raw": "{\n  \"content\": \"Check out our latest updates! #excited #socialmedia\",\n  \"images\": [\"https://example.com/image.jpg\"],\n  \"company_name\": \"{{company_name}}\",\n  \"platforms\": [\"x\", \"facebook\"],\n  \"image_url\": \"https://example.com/image.jpg\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/posts",
               "host": ["{{base_url}}"],
               "path": ["api", "posts"]
             },
-            "description": "Create a new post (draft or scheduled)"
+            "description": "Create a new draft post"
           }
         },
         {
           "name": "Create Scheduled Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('post_id', jsonData.post_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -495,14 +509,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"content\": \"This post will be published later!\",\n  \"images\": [\"https://example.com/image.jpg\"],\n  \"scheduled_at\": \"2024-12-31T12:00:00Z\"\n}"
+              "raw": "{\n  \"content\": \"This post will be published automatically at the scheduled time!\",\n  \"images\": [\"https://example.com/image.jpg\"],\n  \"scheduled_at\": \"2025-10-10T14:30:00Z\",\n  \"company_name\": \"{{company_name}}\",\n  \"platforms\": [\"x\", \"facebook\", \"instagram\"],\n  \"image_url\": \"https://example.com/image.jpg\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/posts",
               "host": ["{{base_url}}"],
               "path": ["api", "posts"]
             },
-            "description": "Create a scheduled post"
+            "description": "Create a scheduled post that will be automatically published at the specified time"
           }
         },
         {
@@ -516,6 +530,32 @@
               "path": ["api", "posts"]
             },
             "description": "Get all posts for the authenticated user"
+          }
+        },
+        {
+          "name": "Get Scheduled Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/posts/scheduled",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "scheduled"]
+            },
+            "description": "Get all scheduled posts for the authenticated user (sorted by scheduled time)"
+          }
+        },
+        {
+          "name": "Cancel Scheduled Post",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/posts/scheduled/{{post_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "scheduled", "{{post_id}}"]
+            },
+            "description": "Cancel a scheduled post and convert it back to draft"
           }
         },
         {
@@ -537,7 +577,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts", "publish"]
             },
-            "description": "Publish a post to Twitter/X"
+            "description": "Publish a post immediately to Twitter/X"
           }
         },
         {
@@ -559,7 +599,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts", "publish"]
             },
-            "description": "Publish a post to Facebook"
+            "description": "Publish a post immediately to Facebook"
           }
         },
         {
@@ -581,7 +621,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts", "publish"]
             },
-            "description": "Publish a post to Instagram (requires image_url)"
+            "description": "Publish a post immediately to Instagram (requires image_url)"
           }
         },
         {
@@ -603,7 +643,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts", "publish"]
             },
-            "description": "Publish a post to all platforms simultaneously"
+            "description": "Publish a post immediately to all platforms simultaneously"
           }
         }
       ]
