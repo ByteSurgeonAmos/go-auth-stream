@@ -25,7 +25,6 @@ func main() {
 	db.ConnectDB()
 	defer db.CloseConnection()
 	
-	// Initialize email service
 	if err := utils.InitEmailService(); err != nil {
 		log.Printf("Warning: Email service initialization failed: %v", err)
 		log.Println("Email notifications will not be available")
@@ -33,7 +32,6 @@ func main() {
 		log.Println("Email service initialized successfully")
 	}
 	
-	// Initialize Paystack service
 	if err := utils.InitPaystackService(); err != nil {
 		log.Printf("Warning: Paystack service initialization failed: %v", err)
 		log.Println("Payment endpoints will not be fully functional")
@@ -72,7 +70,6 @@ func main() {
 		}()
 	}
 	
-	// Initialize post scheduler
 	postScheduler := scheduler.NewPostScheduler()
 	postScheduler.Start()
 	log.Println("Post scheduler initialized successfully")
