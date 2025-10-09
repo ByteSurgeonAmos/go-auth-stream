@@ -30,7 +30,7 @@ func InitPostHandler() {
 func validateUserCompanyAndPlatforms(ctx context.Context, userID primitive.ObjectID, companyName string, platforms []string) (bool, string, error) {
 	var user models.User
 	err := db.DB.Collection("users").FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
-	if (err != nil) {
+	if err != nil {
 		return false, "", fmt.Errorf("error fetching user: %v", err)
 	}
 
