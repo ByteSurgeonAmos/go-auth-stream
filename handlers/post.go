@@ -27,6 +27,44 @@ func InitPostHandler() {
 	postsCollection = db.DB.Collection("posts")
 }
 
+func validateUserCompanyAndPlatforms(ctx context.Context, userID primitive.ObjectID, companyName string, platforms []string) (bool, string, error) {
+	var user models.User
+	err := db.DB.Collection("users").FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+	if (err != nil) {
+		return false, "", fmt.Errorf("error fetching user: %v", err)
+	}
+
+	var targetCompany *models.Company
+	for _, comp := range user.Companies {
+		if comp.CompanyName == companyName {
+			targetCompany = &comp
+			break
+		}
+	}
+
+	if targetCompany == nil {
+		return false, fmt.Sprintf("Company '%s' not found. Please add this company first.", companyName), nil
+	}
+
+	linkedPlatforms := make(map[string]bool)
+	for _, social := range targetCompany.Socials {
+		linkedPlatforms[string(social.Platform)] = true
+	}
+
+	var unlinkedPlatforms []string
+	for _, platform := range platforms {
+		if !linkedPlatforms[platform] {
+			unlinkedPlatforms = append(unlinkedPlatforms, platform)
+		}
+	}
+
+	if len(unlinkedPlatforms) > 0 {
+		return false, fmt.Sprintf("The following platforms are not linked to company '%s': %v. Please link these platforms before creating posts.", companyName, unlinkedPlatforms), nil
+	}
+
+	return true, "", nil
+}
+
 func CreatePost(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == "" {
@@ -50,13 +88,25 @@ func CreatePost(c *gin.Context) {
 		return
 	}
 
+	valid, errorMsg, err := validateUserCompanyAndPlatforms(ctx, userObjID, input.CompanyName, input.Platforms)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if !valid {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": errorMsg,
+			"hint": "Use GET /api/social/user/platforms to see your linked platforms",
+		})
+		return
+	}
+
 	status := "draft"
 	var scheduledAt time.Time
 	if input.ScheduledAt != nil {
 		status = "scheduled"
 		scheduledAt = *input.ScheduledAt
 		
-		// Validate scheduled time is in the future
 		if scheduledAt.Before(time.Now()) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Scheduled time must be in the future"})
 			return
@@ -253,6 +303,25 @@ func PublishPost(c *gin.Context) {
 	ctx, cancel := utils.TimeoutWindow(30)
 	defer cancel()
 
+	userObjID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	valid, errorMsg, err := validateUserCompanyAndPlatforms(ctx, userObjID, input.CompanyName, input.Platforms)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if !valid {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": errorMsg,
+			"hint": "Use GET /api/social/user/platforms to see your linked platforms",
+		})
+		return
+	}
+
 	postObjID, err := primitive.ObjectIDFromHex(input.PostID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid post ID"})
@@ -266,7 +335,6 @@ func PublishPost(c *gin.Context) {
 		return
 	}
 
-	userObjID, _ := primitive.ObjectIDFromHex(userID)
 	var user models.User
 	err = db.DB.Collection("users").FindOne(ctx, bson.M{"_id": userObjID}).Decode(&user)
 	if err != nil {
@@ -397,7 +465,6 @@ func publishToTwitter(ctx context.Context, userID primitive.ObjectID, companyNam
 		return "", err
 	}
 
-	// Update token if refreshed
 	if newToken.AccessToken != token.AccessToken {
 		if err := UpdateSocialToken(userID, companyName, social.Platform, newToken.AccessToken, newToken.RefreshToken, newToken.Expiry); err != nil {
 			log.Printf("Warning: Failed to update Twitter token in database: %v", err)
@@ -414,13 +481,11 @@ func publishToFacebook(ctx context.Context, userID primitive.ObjectID, companyNa
 		Expiry:       social.ExpiresAt,
 	}
 
-	// Use the username field to store page ID
 	postID, newToken, err := connectors.PostToFacebookWithRetry(ctx, token, social.Username, content)
 	if err != nil {
 		return "", err
 	}
 
-	// Update token if refreshed
 	if newToken.AccessToken != token.AccessToken {
 		if err := UpdateSocialToken(userID, companyName, social.Platform, newToken.AccessToken, newToken.RefreshToken, newToken.Expiry); err != nil {
 			log.Printf("Warning: Failed to update Facebook token in database: %v", err)
@@ -436,13 +501,11 @@ func publishToInstagram(ctx context.Context, userID primitive.ObjectID, companyN
 		Expiry:      social.ExpiresAt,
 	}
 
-	// Use the username field to store Instagram account ID
 	postID, newToken, err := connectors.PostToInstagramWithRetry(ctx, token, social.Username, caption, imageURL)
 	if err != nil {
 		return "", err
 	}
 
-	// Update token if refreshed
 	if newToken.AccessToken != token.AccessToken {
 		if err := UpdateSocialToken(userID, companyName, social.Platform, newToken.AccessToken, "", newToken.Expiry); err != nil {
 			log.Printf("Warning: Failed to update Instagram token in database: %v", err)
@@ -452,14 +515,12 @@ func publishToInstagram(ctx context.Context, userID primitive.ObjectID, companyN
 	return postID, nil
 }
 
-// UpdateSocialToken updates OAuth tokens for a specific platform in the user's company
 func UpdateSocialToken(userID primitive.ObjectID, companyName string, platform models.Platform, accessToken, refreshToken string, expiresAt time.Time) error {
 	ctx, cancel := utils.TimeoutWindow(10)
 	defer cancel()
 
 	usersCollection := db.DB.Collection("users")
 
-	// Find company and social indexes
 	var user models.User
 	err := usersCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
 	if err != nil {
@@ -486,7 +547,6 @@ func UpdateSocialToken(userID primitive.ObjectID, companyName string, platform m
 		return mongo.ErrNoDocuments
 	}
 
-	// Update using specific array indexes
 	updateFields := bson.M{
 		fmt.Sprintf("company.%d.socials.%d.access_token", companyIndex, socialIndex): accessToken,
 		fmt.Sprintf("company.%d.socials.%d.expires_at", companyIndex, socialIndex):   expiresAt,
