@@ -25,11 +25,12 @@ func TimeoutWindow(secs int)(context.Context,context.CancelFunc){
 	return context.WithTimeout(context.Background(), time.Duration(secs)*time.Second)
 
 }
-func CreateJwtToken(userID string, username string, email string)(string, error){
+func CreateJwtToken(userID string, username string, email string, role string)(string, error){
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"username": username,
 		"email": email,
+		"role": role,
 		"exp": time.Now().Add(24 * time.Hour).Unix(),
 
 	}
@@ -163,4 +164,36 @@ func cleanupExpiredStates() {
 			delete(oauthStates, state)
 		}
 	}
+}
+
+func GeneratePlanCode(planName string, interval string) string {
+	code := ""
+	for _, char := range planName {
+		if char == ' ' {
+			code += "-"
+		} else if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') {
+			if char >= 'A' && char <= 'Z' {
+				code += string(char + 32)
+			} else {
+				code += string(char)
+			}
+		}
+	}
+	
+	if interval != "" && interval != "free" {
+		code += "-" + interval
+	}
+	
+	timestamp := time.Now().Unix()
+	code += fmt.Sprintf("-%d", timestamp%10000)
+	
+	return code
+}
+
+func GenerateTransactionReference(userID string) string {
+	timestamp := time.Now().Unix()
+	randomBytes := make([]byte, 8)
+	rand.Read(randomBytes)
+	randomStr := base64.URLEncoding.EncodeToString(randomBytes)[:8]
+	return fmt.Sprintf("TXN-%s-%d-%s", userID[:8], timestamp, randomStr)
 }

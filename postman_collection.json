@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "agent4-social-media-api",
     "name": "Agent4 Social Media API",
-    "description": "Complete API collection for Agent4 Social Media Management Platform with Twitter, Facebook, and Instagram integration",
+    "description": "Complete API collection for Agent4 Social Media Management Platform with Twitter, Facebook, and Instagram integration. Includes role-based authentication (User/Admin).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "agent4-api"
   },
@@ -28,7 +28,17 @@
       "type": "string"
     },
     {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "plan_id",
       "value": "",
       "type": "string"
     },
@@ -79,7 +89,7 @@
       "name": "Authentication",
       "item": [
         {
-          "name": "Signup",
+          "name": "Signup (User)",
           "event": [
             {
               "listen": "test",
@@ -88,6 +98,7 @@
                   "if (pm.response.code === 201) {",
                   "    var jsonData = pm.response.json();",
                   "    pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "    console.log('User registered successfully. Role: user (default)');",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -114,11 +125,11 @@
               "host": ["{{base_url}}"],
               "path": ["api", "auth", "signup"]
             },
-            "description": "Register a new user account"
+            "description": "Register a new user account. Default role: 'user'. Users cannot access admin endpoints."
           }
         },
         {
-          "name": "Login",
+          "name": "Login (User)",
           "event": [
             {
               "listen": "test",
@@ -129,6 +140,7 @@
                   "    if (jsonData.token) {",
                   "        pm.collectionVariables.set('auth_token', jsonData.token);",
                   "        pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "        console.log('Login successful. Role:', jsonData.role || 'user');",
                   "    }",
                   "}"
                 ],
@@ -156,7 +168,52 @@
               "host": ["{{base_url}}"],
               "path": ["api", "auth", "login"]
             },
-            "description": "Login with email and password. Returns JWT token."
+            "description": "Login with email and password. Returns JWT token with user role."
+          }
+        },
+        {
+          "name": "Login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.token && jsonData.role === 'admin') {",
+                  "        pm.collectionVariables.set('admin_token', jsonData.token);",
+                  "        pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "        console.log('Admin login successful');",
+                  "    } else {",
+                  "        console.log('Warning: User is not an admin. Role:', jsonData.role);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"AdminPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login as admin. JWT token will contain 'admin' role. Required for creating/updating/deleting plans."
           }
         },
         {
@@ -168,8 +225,13 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set('auth_token', jsonData.token);",
+                  "    if (jsonData.role === 'admin') {",
+                  "        pm.collectionVariables.set('admin_token', jsonData.token);",
+                  "    } else {",
+                  "        pm.collectionVariables.set('auth_token', jsonData.token);",
+                  "    }",
                   "    pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "    console.log('2FA verified. Role:', jsonData.role);",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -196,7 +258,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "auth", "verify-2fa"]
             },
-            "description": "Verify 2FA code sent to email"
+            "description": "Verify 2FA code sent to email. Returns token with user's role."
           }
         }
       ]
@@ -364,7 +426,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "signup-process", "updateCompany"]
             },
-            "description": "Add or update company information for a user"
+            "description": "Add or update company information for a user. Requires authentication."
           }
         }
       ]
@@ -385,7 +447,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "social", "platforms"]
             },
-            "description": "Get list of all supported social media platforms"
+            "description": "Get list of all supported social media platforms. Public endpoint."
           }
         },
         {
@@ -407,7 +469,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "social", "platforms"]
             },
-            "description": "Link a social media platform to a company"
+            "description": "Link a social media platform to a company. Requires authentication."
           }
         },
         {
@@ -420,7 +482,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "social", "user", "platforms"]
             },
-            "description": "Get all social platforms linked to user's companies"
+            "description": "Get all social platforms linked to user's companies. Requires authentication."
           }
         },
         {
@@ -439,7 +501,7 @@
                 }
               ]
             },
-            "description": "Get social platforms for a specific company"
+            "description": "Get social platforms for a specific company. Requires authentication."
           }
         }
       ]
@@ -480,7 +542,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts"]
             },
-            "description": "Create a new draft post"
+            "description": "Create a new draft post. Requires authentication."
           }
         },
         {
@@ -516,7 +578,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts"]
             },
-            "description": "Create a scheduled post that will be automatically published at the specified time"
+            "description": "Create a scheduled post that will be automatically published at the specified time. Requires authentication."
           }
         },
         {
@@ -529,7 +591,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts"]
             },
-            "description": "Get all posts for the authenticated user"
+            "description": "Get all posts for the authenticated user. Requires authentication."
           }
         },
         {
@@ -542,7 +604,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts", "scheduled"]
             },
-            "description": "Get all scheduled posts for the authenticated user (sorted by scheduled time)"
+            "description": "Get all scheduled posts for the authenticated user (sorted by scheduled time). Requires authentication."
           }
         },
         {
@@ -555,7 +617,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts", "scheduled", "{{post_id}}"]
             },
-            "description": "Cancel a scheduled post and convert it back to draft"
+            "description": "Cancel a scheduled post and convert it back to draft. Requires authentication."
           }
         },
         {
@@ -577,7 +639,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts", "publish"]
             },
-            "description": "Publish a post immediately to Twitter/X"
+            "description": "Publish a post immediately to Twitter/X. Requires authentication."
           }
         },
         {
@@ -599,7 +661,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts", "publish"]
             },
-            "description": "Publish a post immediately to Facebook"
+            "description": "Publish a post immediately to Facebook. Requires authentication."
           }
         },
         {
@@ -621,7 +683,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts", "publish"]
             },
-            "description": "Publish a post immediately to Instagram (requires image_url)"
+            "description": "Publish a post immediately to Instagram (requires image_url). Requires authentication."
           }
         },
         {
@@ -643,13 +705,14 @@
               "host": ["{{base_url}}"],
               "path": ["api", "posts", "publish"]
             },
-            "description": "Publish a post immediately to all platforms simultaneously"
+            "description": "Publish a post immediately to all platforms simultaneously. Requires authentication."
           }
         }
       ]
     },
     {
-      "name": "Subscription Plans",
+      "name": "Subscription Plans (RBAC)",
+      "description": "Plan management with Role-Based Access Control. Create/Update/Delete operations require admin role.",
       "item": [
         {
           "name": "Get All Plans",
@@ -664,7 +727,239 @@
               "host": ["{{base_url}}"],
               "path": ["api", "plans"]
             },
-            "description": "Get all available subscription plans"
+            "description": "Get all available subscription plans. Public endpoint - no authentication required."
+          }
+        },
+        {
+          "name": "Get Plan by ID",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/plans/{{plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans", "{{plan_id}}"]
+            },
+            "description": "Get a specific plan by ID. Public endpoint - no authentication required."
+          }
+        },
+        {
+          "name": "Create Plan with Auto-Generated Code (Admin Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('plan_id', jsonData.plan_id || jsonData.plan._id);",
+                  "    console.log('Plan created with code:', jsonData.plan.plan_code);",
+                  "} else if (pm.response.code === 403) {",
+                  "    console.error('Access denied. Admin privileges required. Use admin_token.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pro Plan\",\n  \"description\": \"Perfect for growing businesses\",\n  \"amount\": 2999,\n  \"interval\": \"monthly\",\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans"]
+            },
+            "description": "⚠️ ADMIN ONLY: Create a new plan with auto-generated plan_code. plan_code will be generated from name + interval (e.g., 'pro-plan-monthly-1234'). Requires admin authentication token."
+          }
+        },
+        {
+          "name": "Create Plan with Custom Code (Admin Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('plan_id', jsonData.plan_id || jsonData.plan._id);",
+                  "} else if (pm.response.code === 403) {",
+                  "    console.error('Access denied. Admin privileges required.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Enterprise Plan\",\n  \"plan_code\": \"enterprise-annual-2025\",\n  \"description\": \"For large organizations\",\n  \"amount\": 29999,\n  \"interval\": \"annually\",\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans"]
+            },
+            "description": "⚠️ ADMIN ONLY: Create a plan with custom plan_code. Amount is in cents (29999 = $299.99). Intervals: 'monthly', 'annually', or 'free'. Requires admin authentication token."
+          }
+        },
+        {
+          "name": "Create Free Plan (Admin Only)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Free Plan\",\n  \"description\": \"Basic features for individuals\",\n  \"amount\": 0,\n  \"interval\": \"free\",\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans"]
+            },
+            "description": "⚠️ ADMIN ONLY: Create a free plan. Free plans must have amount = 0 and interval = 'free'. plan_code will be auto-generated. Requires admin authentication token."
+          }
+        },
+        {
+          "name": "Update Plan (Admin Only)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pro Plan Updated\",\n  \"description\": \"Enhanced features for businesses\",\n  \"amount\": 3499\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/plans/{{plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans", "{{plan_id}}"]
+            },
+            "description": "⚠️ ADMIN ONLY: Update an existing plan. All fields are optional. Requires admin authentication token."
+          }
+        },
+        {
+          "name": "Delete Plan (Admin Only)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/plans/{{plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans", "{{plan_id}}"]
+            },
+            "description": "⚠️ ADMIN ONLY: Delete a plan. Cannot delete plans with active subscriptions. Requires admin authentication token."
+          }
+        },
+        {
+          "name": "Try Admin Action with User Token (Will Fail)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Plan\",\n  \"amount\": 1999,\n  \"interval\": \"monthly\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans"]
+            },
+            "description": "🔴 TEST REQUEST: This demonstrates what happens when a regular user tries to create a plan. Expected response: 403 Forbidden with message 'Access denied. Admin privileges required.'"
           }
         }
       ]
@@ -684,14 +979,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"plan_id\": \"plan_id_here\",\n  \"payment_method\": \"card\"\n}"
+              "raw": "{\n  \"plan_id\": \"{{plan_id}}\",\n  \"payment_method\": \"card\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/subscriptions",
               "host": ["{{base_url}}"],
               "path": ["api", "subscriptions"]
             },
-            "description": "Create a new subscription"
+            "description": "Create a new subscription for the authenticated user. Requires authentication."
           }
         },
         {
@@ -704,7 +999,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "subscriptions"]
             },
-            "description": "Get current user's subscription details"
+            "description": "Get current user's active subscription details. Requires authentication."
           }
         }
       ]
@@ -724,14 +1019,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"amount\": 5000,\n  \"email\": \"john@example.com\",\n  \"plan_id\": \"plan_id_here\"\n}"
+              "raw": "{\n  \"plan_id\": \"{{plan_id}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/payments/initialize",
               "host": ["{{base_url}}"],
               "path": ["api", "payments", "initialize"]
             },
-            "description": "Initialize a payment transaction"
+            "description": "Initialize a payment transaction for a subscription. Requires authentication."
           }
         },
         {
@@ -753,7 +1048,7 @@
                 }
               ]
             },
-            "description": "Verify a payment transaction"
+            "description": "Verify a payment transaction. Public endpoint - callback from payment gateway."
           }
         }
       ]
@@ -780,7 +1075,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "agent", "generate"]
             },
-            "description": "Generate a social media post using AI"
+            "description": "Generate a social media post using AI. Requires authentication."
           }
         },
         {
@@ -802,7 +1097,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "agent", "generate", "stream"]
             },
-            "description": "Generate a social media post using AI with streaming response"
+            "description": "Generate a social media post using AI with streaming response. Requires authentication."
           }
         },
         {
@@ -815,7 +1110,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "agent", "companies", "{{user_id}}"]
             },
-            "description": "Get all companies for a specific user"
+            "description": "Get all companies for a specific user. Requires authentication."
           }
         },
         {
@@ -837,7 +1132,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "agent", "conversations"]
             },
-            "description": "Create a new conversation with the AI agent"
+            "description": "Create a new conversation with the AI agent. Requires authentication."
           }
         }
       ]

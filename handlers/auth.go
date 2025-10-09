@@ -53,9 +53,12 @@ func Signup(c *gin.Context) {
 	}
 
 	user := models.User{
-		UserName: input.UserName,
-		Email:    input.Email,
-		Password: hashedPassword,
+		UserName:  input.UserName,
+		Email:     input.Email,
+		Password:  hashedPassword,
+		Role:      models.RoleUser, 
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	result, err := usersCollection.InsertOne(ctx, user)
@@ -142,12 +145,22 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	token, err := utils.CreateJwtToken(user.ID.Hex(), user.UserName, user.Email)
+	role := string(user.Role)
+	if role == "" {
+		role = string(models.RoleUser)
+	}
+
+	token, err := utils.CreateJwtToken(user.ID.Hex(), user.UserName, user.Email, role)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Login successful", "user_id": user.ID, "token": token})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login successful",
+		"user_id": user.ID,
+		"token":   token,
+		"role":    role,
+	})
 }
 
 func Verify2FA(c *gin.Context) {
@@ -190,7 +203,12 @@ func Verify2FA(c *gin.Context) {
 		log.Printf("Error clearing 2FA code: %v", err)
 	}
 
-	token, err := utils.CreateJwtToken(user.ID.Hex(), user.UserName, user.Email)
+	role := string(user.Role)
+	if role == "" {
+		role = string(models.RoleUser)
+	}
+
+	token, err := utils.CreateJwtToken(user.ID.Hex(), user.UserName, user.Email, role)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
 		return
@@ -200,6 +218,7 @@ func Verify2FA(c *gin.Context) {
 		"message": "2FA verification successful",
 		"user_id": user.ID,
 		"token":   token,
+		"role":    role,
 	})
 }
 

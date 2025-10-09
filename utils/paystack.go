@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"time"
 )
 
 const (
@@ -155,9 +154,7 @@ func VerifyTransaction(reference string) (*PaystackVerifyResponse, error) {
 	return &verifyResponse, nil
 }
 
-func GenerateTransactionReference(userID string) string {
-	return fmt.Sprintf("TXN-%s-%d", userID, time.Now().Unix())
-}
+
 
 func TimeNow() interface {
 	Unix() int64

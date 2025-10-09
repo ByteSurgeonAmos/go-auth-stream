@@ -6,6 +6,12 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+type Role string
+
+const (
+	RoleUser  Role = "user"
+	RoleAdmin Role = "admin"
+)
 
 type Platform string
 
@@ -50,9 +56,12 @@ type User struct{
 	UserName string `bson:"username" json:"username"`
 	Email string	`bson:"email" json:"email"`
 	Password string	`bson:"password" json:"-"`
+	Role Role `bson:"role" json:"role"`
 	Companies []Company `bson:"company" json:"company"`
 	TwoFactorEnabled bool `bson:"two_factor_enabled" json:"two_factor_enabled"`
 	TwoFactorCode string `bson:"two_factor_code,omitempty" json:"-"`
 	TwoFactorExpiry time.Time `bson:"two_factor_expiry,omitempty" json:"-"`
+	CreatedAt time.Time `bson:"created_at" json:"created_at"`
+	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }
 

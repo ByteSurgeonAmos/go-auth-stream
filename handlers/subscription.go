@@ -56,6 +56,239 @@ func GetAllPlans(c *gin.Context) {
 	})
 }
 
+func CreatePlan(c *gin.Context) {
+	var input struct {
+		Name        string          `json:"name" binding:"required"`
+		PlanCode    string          `json:"plan_code"` 
+		Description string          `json:"description"`
+		Amount      int             `json:"amount" binding:"required"` 
+		Interval    models.Interval `json:"interval" binding:"required"`
+		Currency    string          `json:"currency"`
+	}
+
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	validIntervals := map[models.Interval]bool{
+		models.IntervalMonthly: true,
+		models.IntervalAnnual:  true,
+		models.IntervalFree:    true,
+	}
+	if !validIntervals[input.Interval] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid interval. Must be 'monthly', 'annually', or 'free'"})
+		return
+	}
+
+	if input.Interval == models.IntervalFree && input.Amount != 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Free plans must have amount of 0"})
+		return
+	}
+
+	planCode := input.PlanCode
+	if planCode == "" {
+		planCode = utils.GeneratePlanCode(input.Name, string(input.Interval))
+	}
+
+	ctx, cancel := utils.TimeoutWindow(10)
+	defer cancel()
+
+	var existingPlan models.Plan
+	err = plansCollection.FindOne(ctx, bson.M{"plan_code": planCode}).Decode(&existingPlan)
+	if err == nil {
+		c.JSON(http.StatusConflict, gin.H{
+			"error": "Plan with this plan_code already exists",
+			"existing_plan_code": planCode,
+			"suggestion": "Please provide a different plan_code or let the system generate one automatically",
+		})
+		return
+	}
+
+	currency := input.Currency
+	if currency == "" {
+		currency = "USD"
+	}
+
+	plan := models.Plan{
+		ID:          primitive.NewObjectID().Hex(),
+		Name:        input.Name,
+		PlanCode:    planCode,
+		Description: input.Description,
+		Amount:      input.Amount,
+		Interval:    input.Interval,
+		Currency:    currency,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	result, err := plansCollection.InsertOne(ctx, plan)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error creating plan"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Plan created successfully",
+		"plan_id": result.InsertedID,
+		"plan":    plan,
+	})
+}
+
+func UpdatePlan(c *gin.Context) {
+	planID := c.Param("plan_id")
+	if planID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Plan ID is required"})
+		return
+	}
+
+	var input struct {
+		Name        string          `json:"name"`
+		Description string          `json:"description"`
+		Amount      int             `json:"amount"`
+		Interval    models.Interval `json:"interval"`
+		Currency    string          `json:"currency"`
+	}
+
+	err := c.ShouldBindJSON(&input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx, cancel := utils.TimeoutWindow(10)
+	defer cancel()
+
+	var existingPlan models.Plan
+	err = plansCollection.FindOne(ctx, bson.M{"_id": planID}).Decode(&existingPlan)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Plan not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching plan"})
+		return
+	}
+
+	updateFields := bson.M{
+		"updated_at": time.Now(),
+	}
+
+	if input.Name != "" {
+		updateFields["name"] = input.Name
+	}
+	if input.Description != "" {
+		updateFields["description"] = input.Description
+	}
+	if input.Amount >= 0 {
+		updateFields["amount"] = input.Amount
+	}
+	if input.Interval != "" {
+		updateFields["interval"] = input.Interval
+	}
+	if input.Currency != "" {
+		updateFields["currency"] = input.Currency
+	}
+
+	result, err := plansCollection.UpdateOne(
+		ctx,
+		bson.M{"_id": planID},
+		bson.M{"$set": updateFields},
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating plan"})
+		return
+	}
+
+	if result.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Plan not found"})
+		return
+	}
+
+	var updatedPlan models.Plan
+	err = plansCollection.FindOne(ctx, bson.M{"_id": planID}).Decode(&updatedPlan)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"message": "Plan updated successfully"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Plan updated successfully",
+		"plan":    updatedPlan,
+	})
+}
+
+func DeletePlan(c *gin.Context) {
+	planID := c.Param("plan_id")
+	if planID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Plan ID is required"})
+		return
+	}
+
+	ctx, cancel := utils.TimeoutWindow(10)
+	defer cancel()
+
+	count, err := subscriptionsCollection.CountDocuments(ctx, bson.M{
+		"plan_id": planID,
+		"status":  models.StatusActive,
+	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking subscriptions"})
+		return
+	}
+
+	if count > 0 {
+		c.JSON(http.StatusConflict, gin.H{
+			"error": fmt.Sprintf("Cannot delete plan with %d active subscriptions", count),
+		})
+		return
+	}
+
+	result, err := plansCollection.DeleteOne(ctx, bson.M{"_id": planID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error deleting plan"})
+		return
+	}
+
+	if result.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Plan not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Plan deleted successfully",
+	})
+}
+
+func GetPlanByID(c *gin.Context) {
+	planID := c.Param("plan_id")
+	if planID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Plan ID is required"})
+		return
+	}
+
+	ctx, cancel := utils.TimeoutWindow(10)
+	defer cancel()
+
+	var plan models.Plan
+	err := plansCollection.FindOne(ctx, bson.M{"_id": planID}).Decode(&plan)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Plan not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching plan"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"plan": plan,
+	})
+}
+
 func CreateSubscription(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if userID == "" {

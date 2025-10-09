@@ -65,6 +65,11 @@ func SetUpRouter()* gin.Engine{
 	planRoutes := r.Group("/api/plans")
 	{
 		planRoutes.GET("/", handlers.GetAllPlans)
+		planRoutes.GET("/:plan_id", handlers.GetPlanByID)
+		
+		planRoutes.POST("/", middleware.AdminMiddleware(), handlers.CreatePlan)
+		planRoutes.PUT("/:plan_id", middleware.AdminMiddleware(), handlers.UpdatePlan)
+		planRoutes.DELETE("/:plan_id", middleware.AdminMiddleware(), handlers.DeletePlan)
 	}
 	
 	subscriptionRoutes := r.Group("/api/subscriptions")
