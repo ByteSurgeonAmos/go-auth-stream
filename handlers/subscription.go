@@ -181,6 +181,10 @@ func UpdatePlan(c *gin.Context) {
 	if input.Description != "" {
 		updateFields["description"] = input.Description
 	}
+	if input.Amount < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Amount cannot be negative"})
+		return
+	}
 	if input.Amount >= 0 {
 		updateFields["amount"] = input.Amount
 	}
