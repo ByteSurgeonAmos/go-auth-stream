@@ -51,6 +51,11 @@
       "key": "company_name",
       "value": "My Company",
       "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -99,6 +104,7 @@
                   "    var jsonData = pm.response.json();",
                   "    pm.collectionVariables.set('user_id', jsonData.user_id);",
                   "    console.log('User registered successfully. Role: user (default)');",
+                  "    console.log('Check email for verification code');",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -125,7 +131,79 @@
               "host": ["{{base_url}}"],
               "path": ["api", "auth", "signup"]
             },
-            "description": "Register a new user account. Default role: 'user'. Users cannot access admin endpoints."
+            "description": "Register a new user account. Default role: 'user'. A verification code will be sent to the email. Users cannot access admin endpoints."
+          }
+        },
+        {
+          "name": "Verify Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.token) {",
+                  "        if (jsonData.role === 'admin') {",
+                  "            pm.collectionVariables.set('admin_token', jsonData.token);",
+                  "        } else {",
+                  "            pm.collectionVariables.set('auth_token', jsonData.token);",
+                  "        }",
+                  "        pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "        console.log('Account verified successfully. Role:', jsonData.role || 'user');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "verify"]
+            },
+            "description": "Verify account with the 6-digit code sent to email after signup. Returns JWT token with user's role upon successful verification."
+          }
+        },
+        {
+          "name": "Resend Verification Code",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/resend-verification",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "resend-verification"]
+            },
+            "description": "Resend verification code to the user's email. Can be used if the original code expired or was not received."
           }
         },
         {
@@ -140,6 +218,9 @@
                   "    if (jsonData.token) {",
                   "        pm.collectionVariables.set('auth_token', jsonData.token);",
                   "        pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "        if (jsonData.refresh_token) {",
+                  "            pm.collectionVariables.set('refresh_token', jsonData.refresh_token);",
+                  "        }",
                   "        console.log('Login successful. Role:', jsonData.role || 'user');",
                   "    }",
                   "}"
@@ -183,6 +264,9 @@
                   "    if (jsonData.token && jsonData.role === 'admin') {",
                   "        pm.collectionVariables.set('admin_token', jsonData.token);",
                   "        pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "        if (jsonData.refresh_token) {",
+                  "            pm.collectionVariables.set('refresh_token', jsonData.refresh_token);",
+                  "        }",
                   "        console.log('Admin login successful');",
                   "    } else {",
                   "        console.log('Warning: User is not an admin. Role:', jsonData.role);",
@@ -259,6 +343,90 @@
               "path": ["api", "auth", "verify-2fa"]
             },
             "description": "Verify 2FA code sent to email. Returns token with user's role."
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.token) {",
+                  "        if (jsonData.role === 'admin') {",
+                  "            pm.collectionVariables.set('admin_token', jsonData.token);",
+                  "        } else {",
+                  "            pm.collectionVariables.set('auth_token', jsonData.token);",
+                  "        }",
+                  "        console.log('Token refreshed successfully');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "refresh"]
+            },
+            "description": "Refresh an expired access token using a refresh token. Returns a new access token."
+          }
+        },
+        {
+          "name": "Revoke Token",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{auth_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/revoke",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "revoke"]
+            },
+            "description": "Revoke a specific token to invalidate it immediately. Useful for security purposes."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Logout the current user and invalidate their token. Requires authentication."
           }
         }
       ]

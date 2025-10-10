@@ -58,9 +58,14 @@ type User struct{
 	Password string	`bson:"password" json:"-"`
 	Role Role `bson:"role" json:"role"`
 	Companies []Company `bson:"company" json:"company"`
+	IsActive bool `bson:"is_active" json:"is_active"`
 	TwoFactorEnabled bool `bson:"two_factor_enabled" json:"two_factor_enabled"`
 	TwoFactorCode string `bson:"two_factor_code,omitempty" json:"-"`
 	TwoFactorExpiry time.Time `bson:"two_factor_expiry,omitempty" json:"-"`
+	VerificationCode string `bson:"verification_code,omitempty" json:"-"`
+	VerificationExpiry time.Time `bson:"verification_expiry,omitempty" json:"-"`
+	RefreshToken string `bson:"refresh_token,omitempty" json:"-"`
+	RefreshTokenExpiry time.Time `bson:"refresh_token_expiry,omitempty" json:"-"`
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
 }

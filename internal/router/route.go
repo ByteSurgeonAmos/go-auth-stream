@@ -27,6 +27,11 @@ func SetUpRouter()* gin.Engine{
 		authRoutes.POST("/signup", handlers.Signup)
 		authRoutes.POST("/login", handlers.Login)
 		authRoutes.POST("/verify-2fa", handlers.Verify2FA)
+		authRoutes.POST("/verify", handlers.VerifyAccount)
+		authRoutes.POST("/resend-verification", handlers.ResendVerificationCode)
+		authRoutes.POST("/refresh", handlers.RefreshToken)
+		authRoutes.POST("/revoke", handlers.RevokeToken)
+		authRoutes.POST("/logout", middleware.AuthMiddleware(), handlers.Logout)
 		
 		authRoutes.GET("/twitter/init", handlers.InitiateTwitterAuth)
 		authRoutes.GET("/twitter/callback", handlers.TwitterCallback)

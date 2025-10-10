@@ -142,6 +142,22 @@ func Send2FACode(to, code string) error {
 	return SendEmail(to, title, body)
 }
 
+func SendVerificationCode(to, code string) error {
+	title := "Verify Your Account"
+	bodyContent := fmt.Sprintf(`
+		Hello,<br><br>
+		Thank you for signing up! Please verify your account using the code below:<br>
+		<div style="background-color:#1a1a1a; border-radius:8px; padding:20px; margin:20px 0; font-size:32px; font-weight:bold; letter-spacing:8px; color:#ffffff;">
+			%s
+		</div>
+		This code will expire in <b>10 minutes</b>.<br><br>
+		If you didn't create an account, please ignore this email.
+	`, code)
+
+	body := emailTemplate(title, "", bodyContent, "", "")
+	return SendEmail(to, title, body)
+}
+
 func SendWelcomeEmail(to, username string) error {
 	title := fmt.Sprintf("Welcome to <span style='color:#ffffff;'>Agent4</span>, %s!", username)
 	bodyContent := fmt.Sprintf(`

@@ -23,6 +23,15 @@ type TwoFactorVerifyInput struct {
 	Code  string `json:"code" binding:"required"`
 }
 
+type VerifyAccountInput struct {
+	Email string `json:"email" binding:"required,email"`
+	Code  string `json:"code" binding:"required"`
+}
+
+type RefreshTokenInput struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
 type UpdateSocialMediaInput struct {
 	CompanyName string        `json:"company_name" binding:"required"`
 	Social      models.Social `json:"social" binding:"required"`

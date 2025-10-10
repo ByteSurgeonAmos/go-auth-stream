@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -21,18 +22,31 @@ var (
 	stateMutex  sync.RWMutex
 )
 
+func getEnvDuration(key string, defaultMinutes int) time.Duration {
+	value := os.Getenv(key)
+	if value == "" {
+		return time.Duration(defaultMinutes) * time.Minute
+	}
+	minutes, err := strconv.Atoi(value)
+	if err != nil {
+		return time.Duration(defaultMinutes) * time.Minute
+	}
+	return time.Duration(minutes) * time.Minute
+}
+
 func TimeoutWindow(secs int)(context.Context,context.CancelFunc){
 	return context.WithTimeout(context.Background(), time.Duration(secs)*time.Second)
 
 }
 func CreateJwtToken(userID string, username string, email string, role string)(string, error){
+	accessTokenExpiry := getEnvDuration("ACCESS_TOKEN_EXPIRY", 15)
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"username": username,
 		"email": email,
 		"role": role,
-		"exp": time.Now().Add(24 * time.Hour).Unix(),
-
+		"exp": time.Now().Add(accessTokenExpiry).Unix(),
+		"type": "access",
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -42,6 +56,62 @@ func CreateJwtToken(userID string, username string, email string, role string)(s
 	tokenString, err := token.SignedString([]byte(jwtSecret))
 	return tokenString, err
 }
+
+func CreateRefreshToken(userID string) (string, error) {
+	refreshTokenExpiry := getEnvDuration("REFRESH_TOKEN_EXPIRY", 10080) // Default 7 days
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"exp": time.Now().Add(refreshTokenExpiry).Unix(),
+		"type": "refresh",
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		return "", fmt.Errorf("JWT_SECRET environment variable not set")
+	}
+	tokenString, err := token.SignedString([]byte(jwtSecret))
+	return tokenString, err
+}
+
+func ValidateRefreshToken(tokenString string) (string, error) {
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		return "", fmt.Errorf("JWT_SECRET environment variable not set")
+	}
+	
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(jwtSecret), nil
+	})
+	
+	if err != nil {
+		return "", err
+	}
+	
+	if !token.Valid {
+		return "", fmt.Errorf("invalid token")
+	}
+	
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", fmt.Errorf("invalid token claims")
+	}
+	
+	tokenType, ok := claims["type"].(string)
+	if !ok || tokenType != "refresh" {
+		return "", fmt.Errorf("invalid token type")
+	}
+	
+	userID, ok := claims["user_id"].(string)
+	if !ok {
+		return "", fmt.Errorf("invalid user_id in token")
+	}
+	
+	return userID, nil
+}
+
 func ValidateJwtToken(tokenString string)(*jwt.Token, error){
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == ""{
@@ -130,9 +200,10 @@ func GenerateRandomState() string {
 }
 
 func StoreOAuthState(state string) {
+	oauthStateExpiry := getEnvDuration("OAUTH_STATE_EXPIRY", 10)
 	stateMutex.Lock()
 	defer stateMutex.Unlock()
-	oauthStates[state] = time.Now().Add(10 * time.Minute)
+	oauthStates[state] = time.Now().Add(oauthStateExpiry)
 	go cleanupExpiredStates()
 }
 
