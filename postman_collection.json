@@ -1,0 +1,1309 @@
+{
+  "info": {
+    "_postman_id": "agent4-social-media-api",
+    "name": "Agent4 Social Media API",
+    "description": "Complete API collection for Agent4 Social Media Management Platform with Twitter, Facebook, and Instagram integration. Includes role-based authentication (User/Admin).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "agent4-api"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8089",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "plan_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "post_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "company_name",
+      "value": "My Company",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the API is running"
+          }
+        },
+        {
+          "name": "Root Endpoint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            },
+            "description": "Get API welcome message"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Signup (User)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "    console.log('User registered successfully. Role: user (default)');",
+                  "    console.log('Check email for verification code');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"johndoe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/signup",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "signup"]
+            },
+            "description": "Register a new user account. Default role: 'user'. A verification code will be sent to the email. Users cannot access admin endpoints."
+          }
+        },
+        {
+          "name": "Verify Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.token) {",
+                  "        if (jsonData.role === 'admin') {",
+                  "            pm.collectionVariables.set('admin_token', jsonData.token);",
+                  "        } else {",
+                  "            pm.collectionVariables.set('auth_token', jsonData.token);",
+                  "        }",
+                  "        pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "        console.log('Account verified successfully. Role:', jsonData.role || 'user');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "verify"]
+            },
+            "description": "Verify account with the 6-digit code sent to email after signup. Returns JWT token with user's role upon successful verification."
+          }
+        },
+        {
+          "name": "Resend Verification Code",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/resend-verification",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "resend-verification"]
+            },
+            "description": "Resend verification code to the user's email. Can be used if the original code expired or was not received."
+          }
+        },
+        {
+          "name": "Login (User)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.token) {",
+                  "        pm.collectionVariables.set('auth_token', jsonData.token);",
+                  "        pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "        if (jsonData.refresh_token) {",
+                  "            pm.collectionVariables.set('refresh_token', jsonData.refresh_token);",
+                  "        }",
+                  "        console.log('Login successful. Role:', jsonData.role || 'user');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login with email and password. Returns JWT token with user role."
+          }
+        },
+        {
+          "name": "Login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.token && jsonData.role === 'admin') {",
+                  "        pm.collectionVariables.set('admin_token', jsonData.token);",
+                  "        pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "        if (jsonData.refresh_token) {",
+                  "            pm.collectionVariables.set('refresh_token', jsonData.refresh_token);",
+                  "        }",
+                  "        console.log('Admin login successful');",
+                  "    } else {",
+                  "        console.log('Warning: User is not an admin. Role:', jsonData.role);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"AdminPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login as admin. JWT token will contain 'admin' role. Required for creating/updating/deleting plans."
+          }
+        },
+        {
+          "name": "Verify 2FA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.role === 'admin') {",
+                  "        pm.collectionVariables.set('admin_token', jsonData.token);",
+                  "    } else {",
+                  "        pm.collectionVariables.set('auth_token', jsonData.token);",
+                  "    }",
+                  "    pm.collectionVariables.set('user_id', jsonData.user_id);",
+                  "    console.log('2FA verified. Role:', jsonData.role);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/verify-2fa",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "verify-2fa"]
+            },
+            "description": "Verify 2FA code sent to email. Returns token with user's role."
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.token) {",
+                  "        if (jsonData.role === 'admin') {",
+                  "            pm.collectionVariables.set('admin_token', jsonData.token);",
+                  "        } else {",
+                  "            pm.collectionVariables.set('auth_token', jsonData.token);",
+                  "        }",
+                  "        console.log('Token refreshed successfully');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "refresh"]
+            },
+            "description": "Refresh an expired access token using a refresh token. Returns a new access token."
+          }
+        },
+        {
+          "name": "Revoke Token",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{auth_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/revoke",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "revoke"]
+            },
+            "description": "Revoke a specific token to invalidate it immediately. Useful for security purposes."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Logout the current user and invalidate their token. Requires authentication."
+          }
+        }
+      ]
+    },
+    {
+      "name": "OAuth - Twitter",
+      "item": [
+        {
+          "name": "Initiate Twitter OAuth",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/twitter/init",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "twitter", "init"]
+            },
+            "description": "Get Twitter OAuth authorization URL"
+          }
+        },
+        {
+          "name": "Twitter OAuth Callback",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/twitter/callback?code=AUTH_CODE&state=STATE_VALUE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "twitter", "callback"],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "AUTH_CODE"
+                },
+                {
+                  "key": "state",
+                  "value": "STATE_VALUE"
+                }
+              ]
+            },
+            "description": "Handle Twitter OAuth callback (automatically called by Twitter)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "OAuth - Facebook",
+      "item": [
+        {
+          "name": "Initiate Facebook OAuth",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/facebook/init",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "facebook", "init"]
+            },
+            "description": "Get Facebook OAuth authorization URL"
+          }
+        },
+        {
+          "name": "Facebook OAuth Callback",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/facebook/callback?code=AUTH_CODE&state=STATE_VALUE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "facebook", "callback"],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "AUTH_CODE"
+                },
+                {
+                  "key": "state",
+                  "value": "STATE_VALUE"
+                }
+              ]
+            },
+            "description": "Handle Facebook OAuth callback (automatically called by Facebook)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "OAuth - Instagram",
+      "item": [
+        {
+          "name": "Initiate Instagram OAuth",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/instagram/init",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "instagram", "init"]
+            },
+            "description": "Get Instagram OAuth authorization URL"
+          }
+        },
+        {
+          "name": "Instagram OAuth Callback",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/instagram/callback?code=AUTH_CODE&state=STATE_VALUE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "instagram", "callback"],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "AUTH_CODE"
+                },
+                {
+                  "key": "state",
+                  "value": "STATE_VALUE"
+                }
+              ]
+            },
+            "description": "Handle Instagram OAuth callback (automatically called by Instagram)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Company Management",
+      "item": [
+        {
+          "name": "Update Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"company\": {\n    \"company_name\": \"{{company_name}}\",\n    \"link\": \"https://example.com\",\n    \"socials\": []\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/signup-process/updateCompany",
+              "host": ["{{base_url}}"],
+              "path": ["api", "signup-process", "updateCompany"]
+            },
+            "description": "Add or update company information for a user. Requires authentication."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Social Media Platforms",
+      "item": [
+        {
+          "name": "Get All Platforms",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/social/platforms",
+              "host": ["{{base_url}}"],
+              "path": ["api", "social", "platforms"]
+            },
+            "description": "Get list of all supported social media platforms. Public endpoint."
+          }
+        },
+        {
+          "name": "Link Social Platform",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"{{company_name}}\",\n  \"social\": {\n    \"platform\": \"x\",\n    \"username\": \"myhandle\",\n    \"url\": \"https://twitter.com/myhandle\",\n    \"access_token\": \"your_access_token\",\n    \"refresh_token\": \"your_refresh_token\",\n    \"expires_at\": \"2024-12-31T23:59:59Z\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/social/platforms",
+              "host": ["{{base_url}}"],
+              "path": ["api", "social", "platforms"]
+            },
+            "description": "Link a social media platform to a company. Requires authentication."
+          }
+        },
+        {
+          "name": "Get User Social Platforms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/social/user/platforms",
+              "host": ["{{base_url}}"],
+              "path": ["api", "social", "user", "platforms"]
+            },
+            "description": "Get all social platforms linked to user's companies. Requires authentication."
+          }
+        },
+        {
+          "name": "Get User Social Platforms By Company",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/social/user/platforms?company_name={{company_name}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "social", "user", "platforms"],
+              "query": [
+                {
+                  "key": "company_name",
+                  "value": "{{company_name}}"
+                }
+              ]
+            },
+            "description": "Get social platforms for a specific company. Requires authentication."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "item": [
+        {
+          "name": "Create Post (Draft)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('post_id', jsonData.post_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Check out our latest updates! #excited #socialmedia\",\n  \"images\": [\"https://example.com/image.jpg\"],\n  \"company_name\": \"{{company_name}}\",\n  \"platforms\": [\"x\", \"facebook\"],\n  \"image_url\": \"https://example.com/image.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts"]
+            },
+            "description": "Create a new draft post. Requires authentication."
+          }
+        },
+        {
+          "name": "Create Scheduled Post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('post_id', jsonData.post_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"This post will be published automatically at the scheduled time!\",\n  \"images\": [\"https://example.com/image.jpg\"],\n  \"scheduled_at\": \"2025-10-10T14:30:00Z\",\n  \"company_name\": \"{{company_name}}\",\n  \"platforms\": [\"x\", \"facebook\", \"instagram\"],\n  \"image_url\": \"https://example.com/image.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts"]
+            },
+            "description": "Create a scheduled post that will be automatically published at the specified time. Requires authentication."
+          }
+        },
+        {
+          "name": "Get All Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/posts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts"]
+            },
+            "description": "Get all posts for the authenticated user. Requires authentication."
+          }
+        },
+        {
+          "name": "Get Scheduled Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/posts/scheduled",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "scheduled"]
+            },
+            "description": "Get all scheduled posts for the authenticated user (sorted by scheduled time). Requires authentication."
+          }
+        },
+        {
+          "name": "Cancel Scheduled Post",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/posts/scheduled/{{post_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "scheduled", "{{post_id}}"]
+            },
+            "description": "Cancel a scheduled post and convert it back to draft. Requires authentication."
+          }
+        },
+        {
+          "name": "Publish Post to Twitter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"post_id\": \"{{post_id}}\",\n  \"company_name\": \"{{company_name}}\",\n  \"platforms\": [\"x\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts/publish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "publish"]
+            },
+            "description": "Publish a post immediately to Twitter/X. Requires authentication."
+          }
+        },
+        {
+          "name": "Publish Post to Facebook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"post_id\": \"{{post_id}}\",\n  \"company_name\": \"{{company_name}}\",\n  \"platforms\": [\"facebook\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts/publish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "publish"]
+            },
+            "description": "Publish a post immediately to Facebook. Requires authentication."
+          }
+        },
+        {
+          "name": "Publish Post to Instagram",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"post_id\": \"{{post_id}}\",\n  \"company_name\": \"{{company_name}}\",\n  \"platforms\": [\"instagram\"],\n  \"image_url\": \"https://example.com/image.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts/publish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "publish"]
+            },
+            "description": "Publish a post immediately to Instagram (requires image_url). Requires authentication."
+          }
+        },
+        {
+          "name": "Publish Post to All Platforms",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"post_id\": \"{{post_id}}\",\n  \"company_name\": \"{{company_name}}\",\n  \"platforms\": [\"x\", \"facebook\", \"instagram\"],\n  \"image_url\": \"https://example.com/image.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/posts/publish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "posts", "publish"]
+            },
+            "description": "Publish a post immediately to all platforms simultaneously. Requires authentication."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscription Plans (RBAC)",
+      "description": "Plan management with Role-Based Access Control. Create/Update/Delete operations require admin role.",
+      "item": [
+        {
+          "name": "Get All Plans",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans"]
+            },
+            "description": "Get all available subscription plans. Public endpoint - no authentication required."
+          }
+        },
+        {
+          "name": "Get Plan by ID",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/plans/{{plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans", "{{plan_id}}"]
+            },
+            "description": "Get a specific plan by ID. Public endpoint - no authentication required."
+          }
+        },
+        {
+          "name": "Create Plan with Auto-Generated Code (Admin Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('plan_id', jsonData.plan_id || jsonData.plan._id);",
+                  "    console.log('Plan created with code:', jsonData.plan.plan_code);",
+                  "} else if (pm.response.code === 403) {",
+                  "    console.error('Access denied. Admin privileges required. Use admin_token.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pro Plan\",\n  \"description\": \"Perfect for growing businesses\",\n  \"amount\": 2999,\n  \"interval\": \"monthly\",\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans"]
+            },
+            "description": "⚠️ ADMIN ONLY: Create a new plan with auto-generated plan_code. plan_code will be generated from name + interval (e.g., 'pro-plan-monthly-1234'). Requires admin authentication token."
+          }
+        },
+        {
+          "name": "Create Plan with Custom Code (Admin Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('plan_id', jsonData.plan_id || jsonData.plan._id);",
+                  "} else if (pm.response.code === 403) {",
+                  "    console.error('Access denied. Admin privileges required.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Enterprise Plan\",\n  \"plan_code\": \"enterprise-annual-2025\",\n  \"description\": \"For large organizations\",\n  \"amount\": 29999,\n  \"interval\": \"annually\",\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans"]
+            },
+            "description": "⚠️ ADMIN ONLY: Create a plan with custom plan_code. Amount is in cents (29999 = $299.99). Intervals: 'monthly', 'annually', or 'free'. Requires admin authentication token."
+          }
+        },
+        {
+          "name": "Create Free Plan (Admin Only)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Free Plan\",\n  \"description\": \"Basic features for individuals\",\n  \"amount\": 0,\n  \"interval\": \"free\",\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans"]
+            },
+            "description": "⚠️ ADMIN ONLY: Create a free plan. Free plans must have amount = 0 and interval = 'free'. plan_code will be auto-generated. Requires admin authentication token."
+          }
+        },
+        {
+          "name": "Update Plan (Admin Only)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pro Plan Updated\",\n  \"description\": \"Enhanced features for businesses\",\n  \"amount\": 3499\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/plans/{{plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans", "{{plan_id}}"]
+            },
+            "description": "⚠️ ADMIN ONLY: Update an existing plan. All fields are optional. Requires admin authentication token."
+          }
+        },
+        {
+          "name": "Delete Plan (Admin Only)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/plans/{{plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans", "{{plan_id}}"]
+            },
+            "description": "⚠️ ADMIN ONLY: Delete a plan. Cannot delete plans with active subscriptions. Requires admin authentication token."
+          }
+        },
+        {
+          "name": "Try Admin Action with User Token (Will Fail)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Plan\",\n  \"amount\": 1999,\n  \"interval\": \"monthly\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "plans"]
+            },
+            "description": "🔴 TEST REQUEST: This demonstrates what happens when a regular user tries to create a plan. Expected response: 403 Forbidden with message 'Access denied. Admin privileges required.'"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "item": [
+        {
+          "name": "Create Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_id\": \"{{plan_id}}\",\n  \"payment_method\": \"card\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions"]
+            },
+            "description": "Create a new subscription for the authenticated user. Requires authentication."
+          }
+        },
+        {
+          "name": "Get User Subscription",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/subscriptions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "subscriptions"]
+            },
+            "description": "Get current user's active subscription details. Requires authentication."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Initialize Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_id\": \"{{plan_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/initialize",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "initialize"]
+            },
+            "description": "Initialize a payment transaction for a subscription. Requires authentication."
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/payments/verify?reference=PAYMENT_REFERENCE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "verify"],
+              "query": [
+                {
+                  "key": "reference",
+                  "value": "PAYMENT_REFERENCE"
+                }
+              ]
+            },
+            "description": "Verify a payment transaction. Public endpoint - callback from payment gateway."
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI Agent",
+      "item": [
+        {
+          "name": "Generate Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"{{company_name}}\",\n  \"prompt\": \"Create an engaging post about our latest product launch\",\n  \"platform\": \"x\",\n  \"tone\": \"professional\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/agent/generate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "agent", "generate"]
+            },
+            "description": "Generate a social media post using AI. Requires authentication."
+          }
+        },
+        {
+          "name": "Generate Post (Streaming)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"{{company_name}}\",\n  \"prompt\": \"Create an engaging post about our latest product launch\",\n  \"platform\": \"x\",\n  \"tone\": \"professional\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/agent/generate/stream",
+              "host": ["{{base_url}}"],
+              "path": ["api", "agent", "generate", "stream"]
+            },
+            "description": "Generate a social media post using AI with streaming response. Requires authentication."
+          }
+        },
+        {
+          "name": "Get User Companies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/agent/companies/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "agent", "companies", "{{user_id}}"]
+            },
+            "description": "Get all companies for a specific user. Requires authentication."
+          }
+        },
+        {
+          "name": "Create Conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_name\": \"{{company_name}}\",\n  \"message\": \"Can you help me create a post?\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/agent/conversations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "agent", "conversations"]
+            },
+            "description": "Create a new conversation with the AI agent. Requires authentication."
+          }
+        }
+      ]
+    }
+  ]
+}
